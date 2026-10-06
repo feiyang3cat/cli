@@ -43,6 +43,9 @@ type ScheduleConfigurationOptions struct {
 	CatchupWindow    cliext.FlagDuration
 	Cron             []string
 	EndTime          cliext.FlagTimestamp
+	FastForward      cliext.FlagDuration
+	TimeSkipping     cliext.FlagStringEnum
+	MaxSkipCount     int
 	Interval         []string
 	Jitter           cliext.FlagDuration
 	Notes            string
@@ -61,6 +64,11 @@ func (v *ScheduleConfigurationOptions) BuildFlags(f *pflag.FlagSet) {
 	f.Var(&v.CatchupWindow, "catchup-window", "Maximum catch-up time for when the Service is unavailable.")
 	f.StringArrayVar(&v.Cron, "cron", nil, "Calendar specification in cron string format. For example: `\"30 12 * * Fri\"`.")
 	f.Var(&v.EndTime, "end-time", "Schedule end time.")
+	v.FastForward = 0
+	f.Var(&v.FastForward, "fast-forward", "Enable time skipping and fast-forward the Schedule by this duration. Experimental. Aliased as \"--ff\".")
+	v.TimeSkipping = cliext.NewFlagStringEnum([]string{"enabled", "disabled"}, "")
+	f.Var(&v.TimeSkipping, "time-skipping", "Explicitly enable or disable Schedule time skipping. Experimental. Accepted values: enabled, disabled.")
+	f.IntVar(&v.MaxSkipCount, "max-skip-count", 0, "Override the maximum number of time skips allowed in one session. Most users should rely on the server default. Experimental.")
 	f.StringArrayVar(&v.Interval, "interval", nil, "Interval duration. For example, 90m, or 60m/15m to include phase offset.")
 	v.Jitter = 0
 	f.Var(&v.Jitter, "jitter", "Max difference in time from the specification. Vary the start time randomly within this amount.")
@@ -232,10 +240,8 @@ type SharedWorkflowStartOptions struct {
 func (v *SharedWorkflowStartOptions) BuildFlags(f *pflag.FlagSet) {
 	v.FlagSet = f
 	f.StringVarP(&v.WorkflowId, "workflow-id", "w", "", "Workflow ID. If not supplied, the Service generates a unique ID.")
-	f.StringVar(&v.Type, "type", "", "Workflow Type name. Required. Aliased as \"--name\".")
-	_ = cobra.MarkFlagRequired(f, "type")
-	f.StringVarP(&v.TaskQueue, "task-queue", "t", "", "Workflow Task queue. Required.")
-	_ = cobra.MarkFlagRequired(f, "task-queue")
+	f.StringVar(&v.Type, "type", "", "Workflow Type name. Aliased as \"--name\".")
+	f.StringVarP(&v.TaskQueue, "task-queue", "t", "", "Workflow Task queue.")
 	v.RunTimeout = 0
 	f.Var(&v.RunTimeout, "run-timeout", "Fail a Workflow Run if it lasts longer than `DURATION`.")
 	v.ExecutionTimeout = 0
@@ -2601,6 +2607,7 @@ func NewTemporalScheduleCreateCommand(cctx *CommandContext, parent *TemporalSche
 	s.SharedWorkflowStartOptions.BuildFlags(s.Command.Flags())
 	s.PayloadInputOptions.BuildFlags(s.Command.Flags())
 	s.Command.Flags().SetNormalizeFunc(aliasNormalizer(map[string]string{
+		"ff":   "fast-forward",
 		"name": "type",
 	}))
 	s.Command.Run = func(c *cobra.Command, args []string) {
@@ -2819,6 +2826,7 @@ func NewTemporalScheduleUpdateCommand(cctx *CommandContext, parent *TemporalSche
 	s.SharedWorkflowStartOptions.BuildFlags(s.Command.Flags())
 	s.PayloadInputOptions.BuildFlags(s.Command.Flags())
 	s.Command.Flags().SetNormalizeFunc(aliasNormalizer(map[string]string{
+		"ff":   "fast-forward",
 		"name": "type",
 	}))
 	s.Command.Run = func(c *cobra.Command, args []string) {
@@ -2850,25 +2858,27 @@ func NewTemporalServerCommand(cctx *CommandContext, parent *TemporalCommand) *Te
 }
 
 type TemporalServerStartDevCommand struct {
-	Parent             *TemporalServerCommand
-	Command            cobra.Command
-	DbFilename         string
-	Namespace          []string
-	Port               int
-	HttpPort           int
-	MetricsPort        int
-	UiPort             int
-	Headless           bool
-	Ip                 string
-	UiIp               string
-	UiPublicPath       string
-	UiAssetPath        string
-	UiCodecEndpoint    string
-	UiDisableNewsFetch bool
-	SqlitePragma       []string
-	DynamicConfigValue []string
-	LogConfig          bool
-	SearchAttribute    []string
+	Parent                *TemporalServerCommand
+	Command               cobra.Command
+	DbFilename            string
+	Namespace             []string
+	Port                  int
+	HttpPort              int
+	MetricsPort           int
+	UiPort                int
+	Headless              bool
+	Ip                    string
+	UiIp                  string
+	UiPublicPath          string
+	UiAssetPath           string
+	UiCodecEndpoint       string
+	UiDisableNewsFetch    bool
+	SqlitePragma          []string
+	DynamicConfigValue    []string
+	DynamicConfigFile     string
+	InternalPrincipalAuth bool
+	LogConfig             bool
+	SearchAttribute       []string
 }
 
 func NewTemporalServerStartDevCommand(cctx *CommandContext, parent *TemporalServerCommand) *TemporalServerStartDevCommand {
@@ -2898,6 +2908,8 @@ func NewTemporalServerStartDevCommand(cctx *CommandContext, parent *TemporalServ
 	s.Command.Flags().BoolVar(&s.UiDisableNewsFetch, "ui-disable-news-fetch", false, "Disable the Web UI newsfeed. When set, the UI will not request the newsfeed and the button to open the newsfeed panel is hidden.")
 	s.Command.Flags().StringArrayVar(&s.SqlitePragma, "sqlite-pragma", nil, "SQLite pragma statements in \"PRAGMA=VALUE\" format.")
 	s.Command.Flags().StringArrayVar(&s.DynamicConfigValue, "dynamic-config-value", nil, "Dynamic configuration value using `KEY=VALUE` pairs. Keys must be identifiers, and values must be JSON values. For example: `YourKey=\"YourString\"` Can be passed multiple times.")
+	s.Command.Flags().StringVar(&s.DynamicConfigFile, "dynamic-config-file", "", "Path to a dynamic configuration YAML file. Values passed with `--dynamic-config-value` take precedence over values from this file.")
+	s.Command.Flags().BoolVar(&s.InternalPrincipalAuth, "internal-principal-auth", false, "Authenticate development-server frontend calls as Temporal's internal principal. Intended for testing internal-only server features.")
 	s.Command.Flags().BoolVar(&s.LogConfig, "log-config", false, "Print the server config to stderr.")
 	s.Command.Flags().StringArrayVar(&s.SearchAttribute, "search-attribute", nil, "Search attributes to register using `KEY=VALUE` pairs. Keys must be identifiers, and values must be the search attribute type, which is one of the following: Text, Keyword, Int, Double, Bool, Datetime, KeywordList.")
 	s.Command.Run = func(c *cobra.Command, args []string) {
