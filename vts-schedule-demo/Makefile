@@ -5,7 +5,8 @@ WORKER_BIN := $(BIN_DIR)/worker
 
 .PHONY: all build build-server build-worker \
 	demo-start demo-start-v1 demo-describe demo-status demo-logs demo-clean \
-	demo-fast-forward demo-disable \
+	demo-fast-forward demo-disable demo-week-test demo-backfill-test \
+	demo-buffer-all-week-test \
 	server-start server-status server-logs server-stop
 
 all: build
@@ -36,6 +37,15 @@ demo-fast-forward:
 
 demo-disable:
 	@./demo.sh demo-disable
+
+demo-week-test:
+	@./demo.sh demo-week-test
+
+demo-backfill-test:
+	@./demo.sh demo-backfill-test
+
+demo-buffer-all-week-test:
+	@./demo.sh demo-buffer-all-week-test
 
 demo-status:
 	@./demo.sh demo-status

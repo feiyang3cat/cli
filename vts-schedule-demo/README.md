@@ -20,6 +20,9 @@ Run the demo:
 ```bash
 cd vts-schedule-demo
 make demo-start
+make demo-week-test                 # Allow-All with Time Skipping
+make demo-backfill-test             # Allow-All with Backfill (No Time Skipping)
+make demo-buffer-all-week-test      # Buffer-All with Time Skipping
 TEMPORAL_FAST_FORWARD=2h make demo-fast-forward
 make demo-status
 make demo-describe
@@ -45,6 +48,21 @@ in-memory persistence, so `make demo-clean` stops the processes and removes all 
 server state. Every run generates and records unique Schedule and Workflow IDs
 for both policies; `make demo-status` prints them and `make demo-describe`
 automatically describes both Schedules.
+
+`make demo-week-test` adds an hourly `AllowAll` Schedule with a `168h`
+fast-forward, waits for the fast-forward to complete and roughly 168 Workflow
+executions to start and become visible, and prints the wall-clock timing plus
+completed and still-running counts. Run it after `make demo-start`; `make demo-clean`
+removes the added Schedule too. The recorded result and its limitations are in
+[`perf-risk-report.md`](perf-risk-report.md).
+
+`make demo-backfill-test` creates the same hourly `AllowAll` Schedule with time
+skipping explicitly disabled, backfills the preceding `168h`, and measures how
+long all Workflow executions take to start and become visible.
+`make demo-buffer-all-week-test` runs
+the `168h` fast-forward with `BufferAll` to measure its sequential overlap
+behavior. Both require `make demo-start` first and are included in cleanup and
+status output.
 
 `demo-fast-forward` uses a time-skipping-only update, so it preserves each
 Schedule's interval, action, and overlap policy. `--fast-forward` (alias `--ff`)

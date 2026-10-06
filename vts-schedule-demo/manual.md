@@ -26,11 +26,29 @@ Manage either demo with:
 ```bash
 make demo-status
 make demo-describe
+make demo-week-test                 # Allow-All with Time Skipping
+make demo-backfill-test             # Allow-All with Backfill (No Time Skipping)
+make demo-buffer-all-week-test      # Buffer-All with Time Skipping
 TEMPORAL_FAST_FORWARD=2h make demo-fast-forward
 make demo-disable
 make demo-logs
 make demo-clean
 ```
+
+The optional week test creates an hourly `AllowAll` Schedule, fast-forwards
+`168h`, and reports how many seconds it took to schedule roughly 168 Workflow
+starts and complete the fast-forward. Workflows whose one-hour timer extends
+past the fast-forward boundary may still be running, so the test reports those
+separately. It requires the default V2 demo to be running first. See
+[`perf-risk-report.md`](perf-risk-report.md) for the recorded result and risks.
+
+The backfill comparison uses the same hourly Workflow and `AllowAll` policy but
+explicitly disables time skipping before backfilling the previous `168h`. The
+BufferAll comparison uses the same Workflow, interval, and `168h` fast-forward,
+but buffers overlaps so executions start sequentially. Both tests print action,
+Workflow-start visibility, completion, and wall-clock timing counts. The
+reported "started and visible" time includes visibility-indexing delay and is
+therefore an upper bound on pure server-side start time.
 
 The Web UI is at <http://localhost:8233>. `demo-clean` stops the server and
 Worker, deletes the active Schedule, and removes generated binaries, PID files,
