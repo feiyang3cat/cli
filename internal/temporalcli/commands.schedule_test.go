@@ -59,8 +59,16 @@ func (s *SharedServerSuite) TestSchedule_Create() {
 	s.NoError(res.Err)
 }
 
-func (s *SharedServerSuite) TestSchedule_CreateFastForward() {
-	_, _, res := s.createSchedule("--interval", "10d", "--paused", "--ff", "5h", "--max-skip-count", "17")
+func (s *SharedServerSuite) TestSchedule_TimeSkippingFastForward() {
+	schedID, _, res := s.createSchedule("--interval", "10d", "--paused")
+	s.NoError(res.Err)
+	res = s.Execute(
+		"schedule", "time-skipping", "fast-forward",
+		"--address", s.Address(),
+		"--schedule-id", schedID,
+		"--duration", "5h",
+		"--max-skip-per-session", "17",
+	)
 	s.NoError(res.Err)
 	s.Contains(res.Stdout.String(), "Time skipping: enabled")
 	s.Contains(res.Stdout.String(), "Fast-forward duration: 5h 0m 0s")
@@ -520,20 +528,15 @@ func (s *SharedServerSuite) TestSchedule_Update() {
 	}, 10*time.Second, 100*time.Millisecond)
 }
 
-func (s *SharedServerSuite) TestSchedule_UpdateFastForward() {
-	schedID, schedWorkflowID, res := s.createSchedule("--interval", "10d", "--paused")
+func (s *SharedServerSuite) TestSchedule_TimeSkippingDisable() {
+	schedID, _, res := s.createSchedule("--interval", "10d", "--paused")
 	s.NoError(res.Err)
 
 	res = s.Execute(
-		"schedule", "update",
+		"schedule", "time-skipping", "fast-forward",
 		"--address", s.Address(),
 		"--schedule-id", schedID,
-		"--task-queue", s.Worker().Options.TaskQueue,
-		"--type", "DevWorkflow",
-		"--workflow-id", schedWorkflowID,
-		"--interval", "10d",
-		"--paused",
-		"--fast-forward", "6h",
+		"--duration", "6h",
 	)
 	s.NoError(res.Err)
 	s.Contains(res.Stdout.String(), "Time skipping: enabled")
@@ -546,15 +549,13 @@ func (s *SharedServerSuite) TestSchedule_UpdateFastForward() {
 	)
 	s.NoError(res.Err)
 	s.Contains(res.Stdout.String(), "TimeSkipping")
-	s.Contains(res.Stdout.String(), `"ConfiguredEnabled":true`)
 	s.Contains(res.Stdout.String(), `"EffectiveEnabled":true`)
 	s.Contains(res.Stdout.String(), `"FastForward":`)
 
 	res = s.Execute(
-		"schedule", "update",
+		"schedule", "time-skipping", "disable",
 		"--address", s.Address(),
 		"--schedule-id", schedID,
-		"--time-skipping", "disabled",
 	)
 	s.NoError(res.Err)
 	s.Contains(res.Stdout.String(), "Time skipping: disabled")
@@ -575,14 +576,18 @@ func (s *SharedServerSuite) TestSchedule_UpdateFastForward() {
 					} `json:"workflowType"`
 				} `json:"startWorkflow"`
 			} `json:"action"`
-			TimeSkippingConfig struct {
-				Enabled bool `json:"enabled"`
-			} `json:"timeSkippingConfig"`
 		} `json:"schedule"`
+		Info struct {
+			TimeSkippingInfo struct {
+				EffectiveConfig struct {
+					Enabled bool `json:"enabled"`
+				} `json:"effectiveConfig"`
+			} `json:"timeSkippingInfo"`
+		} `json:"info"`
 	}
 	s.NoError(json.Unmarshal(res.Stdout.Bytes(), &description))
 	s.Equal("DevWorkflow", description.Schedule.Action.StartWorkflow.WorkflowType.Name)
-	s.False(description.Schedule.TimeSkippingConfig.Enabled)
+	s.False(description.Info.TimeSkippingInfo.EffectiveConfig.Enabled)
 }
 
 func (s *SharedServerSuite) TestSchedule_Memo_Update() {

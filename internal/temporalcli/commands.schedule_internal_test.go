@@ -11,11 +11,14 @@ import (
 )
 
 func TestScheduleTimeSkippingConfig(t *testing.T) {
-	config := scheduleTimeSkippingConfig(5 * time.Hour)
+	config, err := scheduleTimeSkippingConfig(5*time.Hour, true, 17)
+	require.NoError(t, err)
 
 	require.True(t, config.Enabled)
-	require.NotEmpty(t, config.FastForwardConfig.Id)
-	require.Equal(t, 5*time.Hour, config.FastForwardConfig.Duration.AsDuration())
+	require.True(t, config.DisablePropagation)
+	require.Equal(t, int32(17), config.MaxSessionSkipCount)
+	require.NotEmpty(t, config.FastForwardConfig.ID)
+	require.Equal(t, 5*time.Hour, config.FastForwardConfig.Duration)
 }
 
 func TestTimeSkippingToPrintable(t *testing.T) {
@@ -40,8 +43,7 @@ func TestTimeSkippingToPrintable(t *testing.T) {
 		},
 	}
 
-	printable := timeSkippingToPrintable(config, info)
-	require.True(t, printable.ConfiguredEnabled)
+	printable := timeSkippingToPrintable(info)
 	require.True(t, printable.EffectiveEnabled)
 	require.Equal(t, int32(200), printable.MaxSessionSkipCount)
 	require.Equal(t, int32(4), printable.CurrentSessionSkipCount)

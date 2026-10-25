@@ -3273,6 +3273,28 @@ commands:
       - schedule-id
       - overlap-policy
 
+  - name: temporal schedule time-skipping
+    summary: Manage Schedule time skipping (Experimental)
+    description: Fast-forward a Schedule or disable its time skipping.
+
+  - name: temporal schedule time-skipping disable
+    summary: Disable Schedule time skipping (Experimental)
+    description: Disable time skipping for a Schedule.
+    option-sets:
+      - schedule-id
+
+  - name: temporal schedule time-skipping fast-forward
+    summary: Fast-forward a Schedule (Experimental)
+    description: Enable time skipping and advance a Schedule by the specified duration.
+    option-sets:
+      - schedule-id
+      - schedule-time-skipping-options
+    options:
+      - name: duration
+        type: duration
+        required: true
+        description: Duration to fast-forward. Must be greater than zero.
+
   - name: temporal schedule update
     summary: Update Schedule details
     description: |
@@ -5363,26 +5385,6 @@ option-sets:
       - name: end-time
         type: timestamp
         description: Schedule end time.
-      - name: fast-forward
-        aliases:
-          - ff
-        type: duration
-        description: |
-          Enable time skipping and fast-forward the Schedule by this duration.
-          Experimental.
-      - name: time-skipping
-        type: string-enum
-        enum-values:
-          - enabled
-          - disabled
-        description: |
-          Explicitly enable or disable Schedule time skipping.
-          Experimental.
-      - name: max-skip-count
-        type: int
-        description: |
-          Override the maximum number of time skips allowed in one session.
-          Most users should rely on the server default. Experimental.
       - name: interval
         type: string[]
         description: |
@@ -5416,6 +5418,15 @@ option-sets:
           Interpret calendar specs with the `TZ` time zone.
           For a list of time zones, see:
           https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
+
+  - name: schedule-time-skipping-options
+    options:
+      - name: disable-propagation
+        type: bool
+        description: Do not propagate time skipping to Workflows started by this Schedule.
+      - name: max-skip-per-session
+        type: int
+        description: Override the server default maximum skips per session.
 
   - name: schedule-create-only
     options:
