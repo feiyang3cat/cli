@@ -59,20 +59,21 @@ func (s *SharedServerSuite) TestSchedule_Create() {
 	s.NoError(res.Err)
 }
 
-func (s *SharedServerSuite) TestSchedule_TimeSkippingFastForward() {
+func (s *SharedServerSuite) TestSchedule_TimeSkippingEnable() {
 	schedID, _, res := s.createSchedule("--interval", "10d", "--paused")
 	s.NoError(res.Err)
 	res = s.Execute(
-		"schedule", "time-skipping", "fast-forward",
+		"schedule", "time-skipping", "enable",
 		"--address", s.Address(),
 		"--schedule-id", schedID,
-		"--duration", "5h",
+		"--fast-forward-duration", "5h",
+		"--fast-forward-id", "YourFastForwardId",
 		"--max-skip-per-session", "17",
 	)
 	s.NoError(res.Err)
 	s.Contains(res.Stdout.String(), "Time skipping: enabled")
 	s.Contains(res.Stdout.String(), "Fast-forward duration: 5h 0m 0s")
-	s.Contains(res.Stdout.String(), "Fast-forward ID:")
+	s.Contains(res.Stdout.String(), "Fast-forward ID: YourFastForwardId")
 	s.Contains(res.Stdout.String(), "Maximum skips per session: 17")
 }
 
@@ -533,10 +534,10 @@ func (s *SharedServerSuite) TestSchedule_TimeSkippingDisable() {
 	s.NoError(res.Err)
 
 	res = s.Execute(
-		"schedule", "time-skipping", "fast-forward",
+		"schedule", "time-skipping", "enable",
 		"--address", s.Address(),
 		"--schedule-id", schedID,
-		"--duration", "6h",
+		"--fast-forward-duration", "6h",
 	)
 	s.NoError(res.Err)
 	s.Contains(res.Stdout.String(), "Time skipping: enabled")
