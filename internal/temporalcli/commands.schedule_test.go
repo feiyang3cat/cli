@@ -75,6 +75,39 @@ func (s *SharedServerSuite) TestSchedule_TimeSkippingEnable() {
 	s.Contains(res.Stdout.String(), "Fast-forward duration: 5h 0m 0s")
 	s.Contains(res.Stdout.String(), "Fast-forward ID: YourFastForwardId")
 	s.Contains(res.Stdout.String(), "Maximum skips per session: 17")
+
+	res = s.Execute(
+		"schedule", "time-skipping", "poll",
+		"--address", s.Address(),
+		"--schedule-id", schedID,
+		"--fast-forward-id", "YourFastForwardId",
+		"--timeout", "200ms",
+	)
+	s.NoError(res.Err)
+	s.Contains(res.Stdout.String(), "poll timed out")
+}
+
+func (s *SharedServerSuite) TestSchedule_TimeSkippingPollCompleted() {
+	schedID, _, res := s.createSchedule("--interval", "10d")
+	s.NoError(res.Err)
+	res = s.Execute(
+		"schedule", "time-skipping", "enable",
+		"--address", s.Address(),
+		"--schedule-id", schedID,
+		"--fast-forward-duration", "5h",
+		"--fast-forward-id", "PollCompletedId",
+	)
+	s.NoError(res.Err)
+
+	res = s.Execute(
+		"schedule", "time-skipping", "poll",
+		"--address", s.Address(),
+		"--schedule-id", schedID,
+		"--fast-forward-id", "PollCompletedId",
+		"--timeout", "10s",
+	)
+	s.NoError(res.Err)
+	s.Contains(res.Stdout.String(), "completed")
 }
 
 func (s *SharedServerSuite) TestSchedule_Delete() {
