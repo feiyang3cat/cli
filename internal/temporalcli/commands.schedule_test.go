@@ -68,6 +68,7 @@ func (s *SharedServerSuite) TestSchedule_TimeSkippingEnable() {
 		"--schedule-id", schedID,
 		"--fast-forward-duration", "5h",
 		"--fast-forward-id", "YourFastForwardId",
+		"--disable-propagation",
 		"--max-skip-per-session", "17",
 	)
 	s.NoError(res.Err)
@@ -75,6 +76,13 @@ func (s *SharedServerSuite) TestSchedule_TimeSkippingEnable() {
 	s.Contains(res.Stdout.String(), "Fast-forward duration: 5h 0m 0s")
 	s.Contains(res.Stdout.String(), "Fast-forward ID: YourFastForwardId")
 	s.Contains(res.Stdout.String(), "Maximum skips per session: 17")
+	res = s.Execute(
+		"schedule", "describe",
+		"--address", s.Address(),
+		"--schedule-id", schedID,
+	)
+	s.NoError(res.Err)
+	s.Contains(res.Stdout.String(), `"DisablePropagation":true`)
 
 	res = s.Execute(
 		"schedule", "time-skipping", "poll",
